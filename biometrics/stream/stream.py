@@ -19,6 +19,7 @@ This is set up to run as a systemctl service, but you can manually run it with:
 
 import sys
 import platform
+import io
 import cbor2
 from datetime import datetime, timedelta
 
@@ -101,38 +102,58 @@ class LatestRawFileHandler(FileSystemEventHandler):
         self.track_latest_file()
 
     def follow_latest_file(self):
-        """Reads and decodes new CBOR-encoded lines from the latest file."""
+        """Reads and decodes new CBOR-encoded lines from the latest file.
+
+        The firmware writes non-standard framing bytes between CBOR records
+        that cbor2 cannot parse sequentially. Instead of reading objects one
+        after another (which breaks on the first framing byte), we read all
+        new bytes into a buffer and scan for the CBOR record marker
+        b'\\xa2cseq' (a 2-item map whose first key is "seq"). Each match is
+        decoded individually; decode failures are skipped so that one bad
+        frame does not abandon the rest of the file.
+        """
         if not self.latest_file_obj:
             return
 
-        # Move to the last known position before reading
-        self.latest_file_obj.seek(self.last_pos)
+        MARKER = b'\xa2cseq'
 
+        # Read all new bytes since last position
+        self.latest_file_obj.seek(self.last_pos)
+        buf = self.latest_file_obj.read()
+        if not buf:
+            return
+
+        offset = 0
         while True:
+            # Find next record marker
+            idx = buf.find(MARKER, offset)
+            if idx == -1:
+                break
+
             try:
-                # Decode CBOR object from a **single line**
-                row = cbor2.load(self.latest_file_obj)  # Load the next CBOR object
+                row = cbor2.load(io.BytesIO(buf[idx:]))
                 one_minute_ago = datetime.now() - timedelta(minutes=2)
 
-                if 'data' in row:  # Check if 'data' key exists
+                if 'data' in row:
                     decoded_data = cbor2.loads(row['data'])
                     if decoded_data['type'] != 'piezo-dual':
+                        offset = idx + len(MARKER)
                         continue
                     record_time = datetime.fromtimestamp(decoded_data['ts'])
                     if one_minute_ago > record_time:
+                        offset = idx + len(MARKER)
                         continue
                     load_piezo_row(decoded_data, 'right')
                     piezo_record_queue.put(decoded_data)
 
-                # Update last read position
-                self.last_pos = self.latest_file_obj.tell()
-
-            except EOFError:
-                # No more CBOR objects to read
-                break
             except Exception as e:
-                logger.error(f"Error decoding CBOR: {e}")
-                break
+                logger.error(f"Error decoding CBOR at offset {self.last_pos + idx}: {e}")
+
+            # Advance past this marker regardless of success/failure
+            offset = idx + len(MARKER)
+
+        # Update position to end of consumed data
+        self.last_pos += len(buf)
 
 
 def process_biometrics():

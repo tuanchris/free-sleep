@@ -40,11 +40,13 @@ async function setupJobs() {
     const schedulesData = schedulesDB.data;
     const settingsData = settingsDB.data;
 
+    const DAYS_OF_WEEK = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
     logger.info('Scheduling jobs...');
     scheduleAlarmOverride(settingsData, 'left');
     scheduleAlarmOverride(settingsData, 'right');
     Object.entries(schedulesData).forEach(([side, sideSchedule]) => {
-      Object.entries(sideSchedule).forEach(([day, schedule]) => {
+      Object.entries(sideSchedule).filter(([day]) => DAYS_OF_WEEK.includes(day)).forEach(([day, schedule]) => {
         schedulePowerOn(settingsData, side as Side, day as DayOfWeek, schedule.power);
         schedulePowerOffAndSleepAnalysis(settingsData, side as Side, day as DayOfWeek, schedule.power);
         scheduleTemperatures(settingsData, side as Side, day as DayOfWeek, schedule.temperatures);

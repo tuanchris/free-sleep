@@ -32,11 +32,12 @@ async function setupJobs() {
         moment.tz.setDefault(settingsDB.data.timeZone || 'UTC');
         const schedulesData = schedulesDB.data;
         const settingsData = settingsDB.data;
+        const DAYS_OF_WEEK = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         logger.info('Scheduling jobs...');
         scheduleAlarmOverride(settingsData, 'left');
         scheduleAlarmOverride(settingsData, 'right');
         Object.entries(schedulesData).forEach(([side, sideSchedule]) => {
-            Object.entries(sideSchedule).forEach(([day, schedule]) => {
+            Object.entries(sideSchedule).filter(([day]) => DAYS_OF_WEEK.includes(day)).forEach(([day, schedule]) => {
                 schedulePowerOn(settingsData, side, day, schedule.power);
                 schedulePowerOffAndSleepAnalysis(settingsData, side, day, schedule.power);
                 scheduleTemperatures(settingsData, side, day, schedule.temperatures);
