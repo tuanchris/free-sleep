@@ -24,7 +24,7 @@ rm -f "$ZIP_FILE"
 # Clean up existing directory and move new code into place
 echo "Setting up the installation directory..."
 rm -rf "$REPO_DIR"
-mv free-sleep-main "$REPO_DIR"
+mv *free-sleep-main "$REPO_DIR"
 
 
 chown -R "$USERNAME":"$USERNAME" "$REPO_DIR"
