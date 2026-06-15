@@ -80,7 +80,11 @@ def _get_file_handler(data_folder_path: str, name: str):
         filename=f"{folder_path}/{name}.log",
         mode='a',
         maxBytes=10 * 1024 * 1024,  # 10MB max file size
-        backupCount=0,  # No rotation, just truncate when max size is reached
+        # backupCount must be >= 1 for RotatingFileHandler to actually cap the
+        # size. With backupCount=0 it never rotates and the file grows forever
+        # (this let free-sleep-stream.log reach ~8GB and fill /persistent).
+        # 2 backups => at most ~30MB per logger.
+        backupCount=2,
         encoding="utf-8",
     )
     handler.setFormatter(FORMATTER)
