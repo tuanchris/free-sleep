@@ -19,6 +19,11 @@ def _calculate_avg(arr: np.ndarray):
 def load_piezo_df(data: Data, side: Side, lower_percentile=2, upper_percentile=98, expected_row_count=None) -> pd.DataFrame:
     logger.debug('Loading piezo df...')
     df = pd.DataFrame(data['piezo_dual'])
+    if df.empty:
+        raise ValueError(
+            f'No piezo data found for the {side} side in the requested time range. '
+            'The mattress topper may be disconnected, or no sensor data was recorded for this period.'
+        )
     df.sort_values(by='ts', inplace=True)
     df['ts'] = pd.to_datetime(df['ts'])
     df.set_index('ts', inplace=True)

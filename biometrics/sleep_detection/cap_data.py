@@ -95,6 +95,12 @@ def load_cap_df(data: Data, side: Side, expected_row_count=None) -> pd.DataFrame
         if row_count / expected_row_count < 0.80:
             logger.warning(f'Potentially missing cap rows! Expected: {expected_row_count:,} Loaded: {row_count:,} ({row_count / expected_row_count * 100:0.0f}%)')
 
+    if df.empty:
+        raise ValueError(
+            f'No capacitance data found for the {side} side in the requested time range. '
+            'The mattress topper may be disconnected, or no sensor data was recorded for this period.'
+        )
+
     logger.debug(f'Loaded cap df time range: {df.index[0]} -> {df.index[-1]}')
     return df
 
